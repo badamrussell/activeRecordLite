@@ -2,43 +2,114 @@ require_relative './associatable'
 require_relative './db_connection' # use DBConnection.execute freely here.
 require_relative './mass_object'
 require_relative './searchable'
+require 'active_support/inflector'
 
 class SQLObject < MassObject
+  extend Searchable
   # sets the table_name
   def self.set_table_name(table_name)
+    #@table_name = table_name.pluralize.underscore
+    @table_name = table_name.underscore
   end
 
   # gets the table_name
   def self.table_name
+    @table_name
   end
 
   # querys database for all records for this type. (result is array of hashes)
   # converts resulting array of hashes to an array of objects by calling ::new
   # for each row in the result. (might want to call #to_sym on keys)
   def self.all
+
+    results = DBConnection.execute(<<-SQL)
+        SELECT *
+        FROM #{@table_name}
+      SQL
+
+    results.map do |row_attributes|
+      self.new(row_attributes)
+    end
   end
 
   # querys database for record of this type with id passed.
   # returns either a single object or nil.
   def self.find(id)
+    result = DBConnection.execute(<<-SQL, id)
+      SELECT *
+      FROM #{@table_name}
+      WHERE
+      id = ?
+      LIMIT 1
+    SQL
+
+    if result.length == 1
+      self.new(result[0])
+    else
+      nil
+    end
+  end
+
+
+
+  # call either create or update depending if id is nil.
+  def save
+    if @id.nil?
+      create
+    else
+      update
+    end
+  end
+
+  private
+  # helper method to return values of the attributes.
+  def attribute_values
+    self.instance_variables.map do |name|
+      next if name == :@id
+      self.send(name.to_s[1..-1])
+    end.compact
+  end
+
+  def attribute_names
+    self.instance_variables.map do |name|
+      next if name == :@id
+      name.to_s[1..-1]
+    end.compact
   end
 
   # executes query that creates record in db with objects attribute values.
   # use send and map to get instance values.
   # after, update the id attribute with the helper method from db_connection
   def create
+    columns = attribute_names
+    question_marks = Array.new(columns.length, "?").join(", ")
+
+    p columns
+    result = DBConnection.execute(<<-SQL, *attribute_values)
+      INSERT INTO #{self.class.table_name} (#{columns.join(", ")})
+      VALUES (#{question_marks})
+    SQL
+
+    @id = DBConnection.last_insert_row_id
+
+    nil
   end
 
   # executes query that updates the row in the db corresponding to this instance
   # of the class. use "#{attr_name} = ?" and join with ', ' for set string.
   def update
-  end
+    columns = attribute_names
+    columns.map! { |name| name + " = ?" }
 
-  # call either create or update depending if id is nil.
-  def save
-  end
+    result = DBConnection.execute(<<-SQL, *attribute_values)
+      UPDATE #{self.class.table_name}
+      SET #{columns.join(", ")}
+      WHERE id = #{@id}
+    SQL
 
-  # helper method to return values of the attributes.
-  def attribute_values
+    nil
   end
 end
+
+
+
