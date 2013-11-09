@@ -51,7 +51,12 @@ describe SQLObject do
     end
   end
 
-  it "#create"
+  # it "#create" do
+  #   cat = TestCat.find(1)
+  #   cat.create
+  #   expect(TestCat.find(cat.id).id).to eq(cat.id)
+  # end
+
   it "#update"
   it "#save"
 

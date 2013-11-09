@@ -43,6 +43,9 @@ class MassObject
   def initialize(params = {})
     #puts params
     #self.my_attr_accessible(params)
+    self.class.my_attr_accessible *params.keys
+    self.class.my_attr_accessor *params.keys
+
     params.each do |attr_name, value|
       if self.class.attributes.include?(attr_name)
         self.instance_variable_set("@#{attr_name.to_s}", value)
@@ -56,7 +59,12 @@ class MassObject
 
 
 end
+# obj = MassObject.new(:x => :x_val, :y => :y_val)
+# puts obj.methods.include?(:x)
+#
 
+# obj = MyMassObject.new(:x => :x_val, :y => :y_val)
+# obj.methods.include?(:x)
 # class MyClass < MassObject
 #   my_attr_accessible :x, :y
 #   my_attr_accessor :x, :y
@@ -74,3 +82,5 @@ end
 # p b.y
 # p a.x
 # p a.y
+# puts "---"
+# puts a.methods.include?(:x)
