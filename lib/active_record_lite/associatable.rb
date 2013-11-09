@@ -18,8 +18,8 @@ end
 class BelongsToAssocParams < AssocParams
   def initialize(name, params)
     @other_class_name = params[:class_name] || name.to_s.camelize
-    @primary_key = params[:primary_key] || "id"
-    @foreign_key = params[:foreign_key] || "#{name}_id"
+    @primary_key = params[:primary_key] || :id
+    @foreign_key = params[:foreign_key] || "#{name}_id".to_sym
     #p "NAME: #{name} is a #{name.class} and #{@other_class_name}"
   end
 
@@ -30,8 +30,8 @@ end
 class HasManyAssocParams < AssocParams
   def initialize(name, params, self_class)
     @other_class_name = params[:class_name] || name.to_s.singularize.camelize
-    @primary_key = params[:primary_key] || "id"
-    @foreign_key = params[:foreign_key] || "#{self_class.name.undersore}_id"
+    @primary_key = params[:primary_key] || :id
+    @foreign_key = params[:foreign_key] || "#{self_class.name.undersore}_id".to_sym
   end
 
   def type
@@ -39,52 +39,72 @@ class HasManyAssocParams < AssocParams
 end
 
 module Associatable
+  
   def assoc_params
+    @assoc_params ||= {}
+    @assoc_params
   end
-
-  #  :class_name => "Cat",
-#  :foreign_key => "cat_id",
-#  :primary_key => "id"
 
   def belongs_to(name, params = {})
     #A SQLObject is going to call this
     # sets up a method <name> that generates a SQL query
     # and returns one object
     b_asc = BelongsToAssocParams.new(name, params)
+    assoc_params[name] = b_asc
 
-    self.class_eval do
-      define_method(name) do
-        result = DBConnection.execute(<<-SQL)
-            SELECT #{self.class.table_name}.*
-            FROM #{self.class.table_name}
-            JOIN #{b_asc.other_table}
-            ON #{b_asc.other_table}.#{b_asc.primary_key} = #{self.class.table_name}.#{b_asc.foreign_key}
-            LIMIT 1
-          SQL
+    define_method(name) do
+      result = DBConnection.execute(<<-SQL, self.send(b_asc.foreign_key))
+          SELECT *
+          FROM #{b_asc.other_table}
+          WHERE #{b_asc.other_table}.#{b_asc.primary_key} = ?
+          LIMIT 1
+        SQL
+      b_asc.other_class.new(result[0])
 
-        b_asc.other_class.new(result[0])
-      end
+      #USE THE PARSE
     end
   end
 
   def has_many(name, params = {})
     b_asc = HasManyAssocParams.new(name, params, self.class)
+    assoc_params[name] = b_asc
 
-    self.class_eval do
-      define_method(name) do
-        results = DBConnection.execute(<<-SQL)
-            SELECT #{self.class.table_name}.*
-            FROM #{self.class.table_name}
-            JOIN #{b_asc.other_table}
-            ON #{self.class.table_name}.#{b_asc.primary_key} = #{b_asc.other_table}.#{b_asc.foreign_key}
-            LIMIT 1
-          SQL
+    define_method(name) do
+      results = DBConnection.execute(<<-SQL, self.send(b_asc.primary_key))
+          SELECT *
+          FROM #{b_asc.other_table}
+          WHERE #{b_asc.other_table}.#{b_asc.foreign_key} = ?
+        SQL
 
-          results.map { |result_hash| b_asc.other_class.new(result_hash) }
-      end
+      results.map { |result_hash| b_asc.other_class.new(result_hash) }
+      #USE THE PARSE
     end
   end
 
   def has_one_through(name, assoc1, assoc2)
+    define_method(name) do
+      params1 = self.class.assoc_params[assoc1]
+      params2 = params1.other_class.assoc_params[assoc2]
+
+      self_key = self.class.assoc_params[assoc1].foreign_key
+
+      unless (params1.nil? && params2.nil?)
+        result = DBConnection.execute(<<-SQL, self.send(self_key))
+            SELECT #{params1.other_table}.*
+            FROM #{params1.other_table}
+            JOIN #{params2.other_table}
+            ON #{params2.other_table}.#{params2.primary_key} = #{params1.other_table}.#{params2.foreign_key}
+            WHERE #{params1.other_table}.#{params1.primary_key} = ?
+            LIMIT 1
+          SQL
+        params2.other_class.new(result[0])
+      end
+    end
   end
 end
+
+
+
+
+
+
