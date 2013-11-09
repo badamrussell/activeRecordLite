@@ -6,6 +6,8 @@ require 'active_support/inflector'
 
 class SQLObject < MassObject
   extend Searchable
+  extend Associatable
+
   # sets the table_name
   def self.set_table_name(table_name)
     #@table_name = table_name.pluralize.underscore
@@ -84,7 +86,6 @@ class SQLObject < MassObject
     columns = attribute_names
     question_marks = Array.new(columns.length, "?").join(", ")
 
-    p columns
     result = DBConnection.execute(<<-SQL, *attribute_values)
       INSERT INTO #{self.class.table_name} (#{columns.join(", ")})
       VALUES (#{question_marks})

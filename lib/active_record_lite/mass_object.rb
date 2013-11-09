@@ -34,6 +34,8 @@ class MassObject
   # takes an array of hashes.
   # returns array of objects.
   def self.parse_all(results)
+    results.map { |options| self.new(options) }
+
   end
 
   # takes a hash of { attr_name => attr_val }.

@@ -12,9 +12,25 @@ end
 
 class BelongsToAssocParams < AssocParams
   def initialize(name, params)
+    @other_class_name = params.other_class_name || camel_case(name)
+    @primary_key = params.primary_key || "id"
+    @foreign_key = params.foreign_key || "#{name}_id"
+    #@other_class =
+    #@other_table_name =
   end
 
   def type
+  end
+
+  private
+
+  def camel_case(name)
+    _index = name.index("_")
+    while _index
+      name = name[0..._index] + name[_index+1].upcase + name[_index+2..-1]
+      _index = name.index("_")
+    end
+    name
   end
 end
 
@@ -31,6 +47,13 @@ module Associatable
   end
 
   def belongs_to(name, params = {})
+    #A SQLObject is going to call this
+    # sets up a method <name> that generates a SQL query
+    # and returns one object
+    puts "BELONG TO..."
+    BelongsToAssocParams.new(name, params)
+
+    self.parse_all()
   end
 
   def has_many(name, params = {})
