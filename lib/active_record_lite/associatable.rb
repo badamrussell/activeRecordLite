@@ -4,6 +4,7 @@ require_relative './db_connection.rb'
 
 class AssocParams
   attr_reader :other_class_name, :primary_key, :foreign_key
+
   def other_class
     return nil if self.other_class_name.nil?
     self.other_class_name.constantize
@@ -20,7 +21,6 @@ class BelongsToAssocParams < AssocParams
     @other_class_name = params[:class_name] || name.to_s.camelize
     @primary_key = params[:primary_key] || :id
     @foreign_key = params[:foreign_key] || "#{name}_id".to_sym
-    #p "NAME: #{name} is a #{name.class} and #{@other_class_name}"
   end
 
   def type
@@ -31,7 +31,7 @@ class HasManyAssocParams < AssocParams
   def initialize(name, params, self_class)
     @other_class_name = params[:class_name] || name.to_s.singularize.camelize
     @primary_key = params[:primary_key] || :id
-    @foreign_key = params[:foreign_key] || "#{self_class.name.undersore}_id".to_sym
+    @foreign_key = params[:foreign_key] ||  "#{self_class.name.undersore}_id".to_sym
   end
 
   def type
@@ -39,16 +39,13 @@ class HasManyAssocParams < AssocParams
 end
 
 module Associatable
-  
+
   def assoc_params
     @assoc_params ||= {}
     @assoc_params
   end
 
   def belongs_to(name, params = {})
-    #A SQLObject is going to call this
-    # sets up a method <name> that generates a SQL query
-    # and returns one object
     b_asc = BelongsToAssocParams.new(name, params)
     assoc_params[name] = b_asc
 
@@ -59,9 +56,7 @@ module Associatable
           WHERE #{b_asc.other_table}.#{b_asc.primary_key} = ?
           LIMIT 1
         SQL
-      b_asc.other_class.new(result[0])
-
-      #USE THE PARSE
+      b_asc.other_class.parse_all(result)[0]
     end
   end
 
@@ -75,9 +70,7 @@ module Associatable
           FROM #{b_asc.other_table}
           WHERE #{b_asc.other_table}.#{b_asc.foreign_key} = ?
         SQL
-
-      results.map { |result_hash| b_asc.other_class.new(result_hash) }
-      #USE THE PARSE
+      b_asc.other_class.parse_all(results)
     end
   end
 
@@ -90,21 +83,16 @@ module Associatable
 
       unless (params1.nil? && params2.nil?)
         result = DBConnection.execute(<<-SQL, self.send(self_key))
-            SELECT #{params1.other_table}.*
-            FROM #{params1.other_table}
-            JOIN #{params2.other_table}
+            SELECT #{params2.other_table}.*
+            FROM #{params2.other_table}
+            JOIN #{params1.other_table}
             ON #{params2.other_table}.#{params2.primary_key} = #{params1.other_table}.#{params2.foreign_key}
             WHERE #{params1.other_table}.#{params1.primary_key} = ?
             LIMIT 1
           SQL
-        params2.other_class.new(result[0])
+
+        params2.other_class.parse_all(result)[0]
       end
     end
   end
 end
-
-
-
-
-
-

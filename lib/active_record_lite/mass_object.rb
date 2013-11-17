@@ -2,8 +2,6 @@ class MassObject
   # takes a list of attributes.
   # creates getters and setters.
   # adds attributes to whitelist.
-
-
   def self.my_attr_accessor(*attributes)
     attributes.each do |attr_name|
       self.class_eval do
@@ -24,6 +22,7 @@ class MassObject
     attributes.each do |attr_name|
       @attributes << attr_name
     end
+    my_attr_accessor(*attributes)
   end
 
   # returns list of attributes that have been whitelisted.
@@ -35,7 +34,6 @@ class MassObject
   # returns array of objects.
   def self.parse_all(results)
     results.map { |options| self.new(options) }
-
   end
 
   # takes a hash of { attr_name => attr_val }.
@@ -43,13 +41,8 @@ class MassObject
   # if the key (attr_name) is in the whitelist, the value (attr_val)
   # is assigned to the instance variable.
   def initialize(params = {})
-    #puts params
-    #self.my_attr_accessible(params)
-    self.class.my_attr_accessible *params.keys
-    self.class.my_attr_accessor *params.keys
-
     params.each do |attr_name, value|
-      if self.class.attributes.include?(attr_name)
+      if self.class.attributes.include?(attr_name.to_sym)
         self.instance_variable_set("@#{attr_name.to_s}", value)
       else
         raise "mass assignment to unregistered attribute #{attr_name}"
@@ -58,31 +51,4 @@ class MassObject
   end
 
   protected
-
-
 end
-# obj = MassObject.new(:x => :x_val, :y => :y_val)
-# puts obj.methods.include?(:x)
-#
-
-# obj = MyMassObject.new(:x => :x_val, :y => :y_val)
-# obj.methods.include?(:x)
-# class MyClass < MassObject
-#   my_attr_accessible :x, :y
-#   my_attr_accessor :x, :y
-# end
-#
-# a = MyClass.new(:x => :x_val, :y => :y_val)
-# a.x = 10
-#
-# puts "ATTRIBUTES: #{a.class.attributes}"
-# p a.x
-# p a.y
-# b = MyClass.new(:x => :a_val, :y => :b_val)
-# puts "ATTRIBUTES: #{b.class.attributes}"
-# p b.x
-# p b.y
-# p a.x
-# p a.y
-# puts "---"
-# puts a.methods.include?(:x)
