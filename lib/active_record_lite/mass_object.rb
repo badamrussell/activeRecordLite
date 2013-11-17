@@ -49,6 +49,4 @@ class MassObject
       end
     end
   end
-
-  protected
 end
