@@ -26,6 +26,9 @@ describe "associatable" do
     class House < SQLObject
       set_table_name("houses")
       my_attr_accessible(:id, :address, :house_id)
+
+      has_many :humans, foreign_key: :owner_id
+      has_many :cats, through: :humans, source: :cats
     end
   end
 
@@ -53,7 +56,7 @@ describe "associatable" do
       human.cats.first.should be_instance_of(Cat)
     end
   end
-  
+
   describe "#has_one_through" do
     it "adds association as method" do
       cat.methods.should include(:house)
@@ -63,5 +66,14 @@ describe "associatable" do
       cat.house.should be_instance_of(House)
     end
   end
-  
+
+  describe "has_many_through" do
+    it "adds association as method" do
+      house.methods.should include(:cats)
+    end
+
+    it "adds an association that returns correct type" do
+      house.cats.first.should be_instance_of(Cat)
+    end
+  end
 end

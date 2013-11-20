@@ -31,7 +31,7 @@ class HasManyAssocParams < AssocParams
   def initialize(name, params, self_class)
     @other_class_name = params[:class_name] || name.to_s.singularize.camelize
     @primary_key = params[:primary_key] || :id
-    @foreign_key = params[:foreign_key] ||  "#{self_class.name.undersore}_id".to_sym
+    @foreign_key = params[:foreign_key] ||  "#{self_class.name.underscore}_id".to_sym
   end
 
   def type
@@ -61,17 +61,43 @@ module Associatable
   end
 
   def has_many(name, params = {})
-    b_asc = HasManyAssocParams.new(name, params, self.class)
-    assoc_params[name] = b_asc
+    if params.has_key?(:through)
+      mid_assoc = params[:through]
+      last_assoc = params[:source]
 
-    define_method(name) do
-      results = DBConnection.execute(<<-SQL, self.send(b_asc.primary_key))
-          SELECT *
-          FROM #{b_asc.other_table}
-          WHERE #{b_asc.other_table}.#{b_asc.foreign_key} = ?
-        SQL
-      b_asc.other_class.parse_all(results)
+      puts "CURRENT: #{self}"
+      puts "ASSOC  : #{mid_assoc}"
+      puts "ASC OBJ: #{assoc_params}"
+      assoc_params
+      puts send(mid_assoc)
+      #puts assoc_params[mid_assoc].instance_variables
+      puts "---------"
+      puts assoc_params[mid_assoc].other_class_name
+      puts "#{mid_assoc}  #{last_assoc}"
+
+      define_method(name)
+        results = DBConnection.execute(<<-SQL, self.send(b_asc.primary_key))
+              SELECT *
+              FROM #{b_asc.other_table}
+              WHERE #{b_asc.other_table}.#{b_asc.foreign_key} = ?
+            SQL
+      end
+
+    else
+      b_asc = HasManyAssocParams.new(name, params, self.class)
+      assoc_params[name] = b_asc
+
+      define_method(name) do
+        results = DBConnection.execute(<<-SQL, self.send(b_asc.primary_key))
+            SELECT *
+            FROM #{b_asc.other_table}
+            WHERE #{b_asc.other_table}.#{b_asc.foreign_key} = ?
+          SQL
+        b_asc.other_class.parse_all(results)
+      end
     end
+
+
   end
 
   def has_one_through(name, assoc1, assoc2)
